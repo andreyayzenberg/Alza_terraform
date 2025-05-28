@@ -7,13 +7,25 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      action:
+        type: choice
+        description: 'Select Action to Perform'
+        required: true
+        options:
+          - create
+          - destroy
+        default: 'create'
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 env:
   TF_LOG: INFO
+  TF_HTTP_USERNAME: ${{ github.actor }}
+  TF_HTTP_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   terraform:
@@ -29,6 +41,11 @@ jobs:
         with:
           terraform_version: "1.12.1"
 
+      - name: Configure Backend
+        run: |
+          REPO_PATH="${{ github.repository }}"
+          sed -i "s|OWNER/REPO|$REPO_PATH|g" backend.tf
+
       - name: Terraform Format
         id: fmt
         run: terraform fmt -check
@@ -42,10 +59,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
 
-      - name: Terraform Plan
+      - name: Terraform Plan Create
         id: plan
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'create')
         run: terraform plan -no-color
+        env:
+          GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
+          TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
+          TF_VAR_github_owner: ${{ github.repository_owner }}
+        continue-on-error: true
+
+      - name: Terraform Plan Destroy
+        id: plan-destroy
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+        run: terraform plan -destroy -no-color
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
@@ -80,12 +107,22 @@ jobs:
             })
 
       - name: Terraform Plan Status
-        if: steps.plan.outcome == 'failure'
+        if: steps.plan.outcome == 'failure' || steps.plan-destroy.outcome == 'failure'
         run: exit 1
 
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: |
+          (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'create')
         run: terraform apply -auto-approve
+        env:
+          GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
+          TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
+          TF_VAR_github_owner: ${{ github.repository_owner }}
+
+      - name: Terraform Destroy
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
