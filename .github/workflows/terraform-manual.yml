@@ -107,6 +107,7 @@ jobs:
 
       - name: Terraform Destroy
         if: github.event.inputs.action == 'destroy'
+        continue-on-error: true
         run: |
           # Target only repositories for destruction
           #terraform destroy -auto-approve -input=false \
