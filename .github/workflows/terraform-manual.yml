@@ -41,7 +41,7 @@ jobs:
           path: .
 
       - name: Initialize Empty State
-        if: github.event.inputs.action == 'create' && !fileExists('terraform.tfstate')
+        if: github.event.inputs.action == 'create' && hashFiles('terraform.tfstate') == ''
         run: |
           echo '{
             "version": 4,
