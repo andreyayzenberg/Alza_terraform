@@ -16,7 +16,6 @@ on:
         options:
           - create
           - destroy
-        default: 'create'
 
 permissions:
   contents: write
