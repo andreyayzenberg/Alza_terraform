@@ -1,2 +1,3 @@
-run_id: 15304248652
-workflow_id: Terraform Manual Actions
+run_id: ${{ github.run_id }}
+workflow_id: ${{ github.workflow }}
+artifact_id: ${{ steps.artifact.outputs.artifact_id }}
