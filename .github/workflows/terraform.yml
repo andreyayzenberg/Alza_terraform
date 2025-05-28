@@ -16,6 +16,7 @@ on:
         options:
           - create
           - destroy
+          - force-unlock
 
 permissions:
   contents: write
@@ -23,8 +24,8 @@ permissions:
 
 env:
   TF_LOG: INFO
-  TF_HTTP_USERNAME: ${{ github.actor }}
-  TF_HTTP_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+  TF_HTTP_USERNAME: "x-access-token"
+  TF_HTTP_PASSWORD: ${{ secrets.TF_GITHUB_TOKEN }}
 
 jobs:
   terraform:
@@ -44,6 +45,16 @@ jobs:
         run: |
           REPO_PATH="${{ github.repository }}"
           sed -i "s|OWNER/REPO|$REPO_PATH|g" backend.tf
+          sed -i "s|GITHUB_TOKEN|${{ secrets.TF_GITHUB_TOKEN }}|g" backend.tf
+
+      - name: Force Unlock State
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'force-unlock'
+        run: |
+          terraform init
+          terraform force-unlock -force "$(terraform state pull 2>&1 | grep -o 'ID: [0-9a-f\-]*' | cut -d' ' -f2)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
+          TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
 
       - name: Terraform Format
         id: fmt
@@ -57,6 +68,15 @@ jobs:
         run: terraform init
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
+
+      - name: Clear Stale Lock
+        run: |
+          curl -X DELETE \
+          -H "Authorization: token ${{ secrets.TF_GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/contents/.terraform.tfstate.lock.info" \
+          || true
+        continue-on-error: true
 
       - name: Terraform Plan Create
         id: plan
