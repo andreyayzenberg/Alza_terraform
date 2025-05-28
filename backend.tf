@@ -10,6 +10,7 @@ terraform {
     password       = "GITHUB_TOKEN"
     retry_max      = 3
     retry_wait_min = 5
+    skip_cert_verification = false
   }
 
   required_providers {

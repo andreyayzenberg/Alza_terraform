@@ -45,7 +45,7 @@ jobs:
         if: github.event.inputs.action == 'create'
         run: |
           # Create a properly formatted empty state file
-          cat > terraform.tfstate << 'EOF'
+          STATE_CONTENT=$(cat << 'EOF'
           {
             "version": 4,
             "terraform_version": "1.12.1",
@@ -56,13 +56,42 @@ jobs:
             "check_results": null
           }
           EOF
+          )
+
+          # Check if state file exists
+          STATE_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.TF_GITHUB_TOKEN }}" \
+                              -H "Accept: application/vnd.github.v3+json" \
+                              "https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate")
           
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          git add terraform.tfstate
-          git commit -m "Initialize properly formatted state file" || true
-          git push || true
-        continue-on-error: true
+          if echo "$STATE_RESPONSE" | jq -e '.sha' > /dev/null; then
+            # File exists, get its SHA
+            SHA=$(echo "$STATE_RESPONSE" | jq -r '.sha')
+            echo "Updating existing state file..."
+          else
+            echo "Creating new state file..."
+            SHA=""
+          fi
+
+          # Prepare the request body
+          REQUEST_BODY=$(jq -n \
+            --arg content "$(echo "$STATE_CONTENT" | base64 -w 0)" \
+            --arg message "Initialize/Update Terraform state" \
+            --arg sha "$SHA" \
+            '{
+              message: $message,
+              content: $content,
+              sha: (if $sha == "" then null else $sha end)
+            }')
+
+          # Create/Update the state file in the repository
+          curl -X PUT \
+            -H "Authorization: token ${{ secrets.TF_GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate" \
+            -d "$REQUEST_BODY"
+        env:
+          GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
 
       - name: Force Unlock State
         if: github.event.inputs.action == 'force-unlock'
@@ -93,7 +122,7 @@ jobs:
       - name: Terraform Plan Create
         if: github.event.inputs.action == 'create'
         id: plan
-        run: terraform plan -lock=false -no-color
+        run: terraform plan -lock=false -no-color -input=false
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
@@ -102,7 +131,7 @@ jobs:
       - name: Terraform Plan Destroy
         if: github.event.inputs.action == 'destroy'
         id: plan-destroy
-        run: terraform plan -destroy -lock=false -no-color
+        run: terraform plan -destroy -lock=false -no-color -input=false
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
@@ -110,7 +139,7 @@ jobs:
 
       - name: Terraform Apply
         if: github.event.inputs.action == 'create'
-        run: terraform apply -lock=false -auto-approve
+        run: terraform apply -lock=false -auto-approve -input=false
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
@@ -118,7 +147,7 @@ jobs:
 
       - name: Terraform Destroy
         if: github.event.inputs.action == 'destroy'
-        run: terraform destroy -lock=false -auto-approve
+        run: terraform destroy -lock=false -auto-approve -input=false
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
