@@ -10,7 +10,6 @@ on:
         options:
           - create
           - destroy
-          - force-unlock
 
 permissions:
   contents: write
@@ -153,12 +152,3 @@ jobs:
           git add terraform.state.link
           git commit -m "Update terraform state location [skip ci]" || true
           git push
-
-      - name: Force Unlock State
-        if: github.event.inputs.action == 'force-unlock'
-        run: |
-          terraform init
-          terraform force-unlock -force $(terraform state pull | jq -r '.serial')
-        env:
-          GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
-          TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }} 
