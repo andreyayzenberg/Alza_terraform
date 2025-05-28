@@ -119,6 +119,15 @@ jobs:
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_owner: ${{ github.repository_owner }}
 
+      - name: Verify State File
+        if: always()
+        run: |
+          echo "Checking terraform.tfstate in repository..."
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate | \
+          jq -r '.sha // empty' && echo "✅ State file found!" || echo "❌ State file not found"
+
       - name: Terraform Destroy
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
         run: terraform destroy -auto-approve
