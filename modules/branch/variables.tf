@@ -27,4 +27,9 @@ variable "protected_repos" {
   type        = set(string)
   description = "Set of repository names that should have branch protection"
   default     = []
+}
+
+variable "repo_languages" {
+  type        = map(string)
+  description = "Map of repository names to their programming languages"
 } 

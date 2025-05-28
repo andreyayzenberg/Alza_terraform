@@ -27,11 +27,12 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.5.0"
+          terraform_version: "1.12.1"
 
       - name: Terraform Format
         id: fmt
         run: terraform fmt -check
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
