@@ -29,11 +29,12 @@ jobs:
         with:
           terraform_version: "1.12.1"
 
-      #- name: Terraform Format
-      #  id: fmt
-      #  run: terraform fmt -check
-      #  env:
-      #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Terraform Format
+        id: fmt
+        run: terraform fmt -check
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Terraform Init
         id: init
