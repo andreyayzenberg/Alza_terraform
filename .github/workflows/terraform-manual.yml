@@ -33,12 +33,22 @@ jobs:
         with:
           terraform_version: "1.12.1"
 
+      - name: Read Previous State Location
+        id: state-location
+        run: |
+          if [ -f "terraform.state.link" ]; then
+            echo "previous_run_id=$(grep 'run_id:' terraform.state.link | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+            echo "previous_workflow=$(grep 'workflow_id:' terraform.state.link | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+          fi
+
       - name: Download Previous State
+        if: steps.state-location.outputs.previous_run_id != ''
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: terraform-state
           path: .
+          run-id: ${{ steps.state-location.outputs.previous_run_id }}
 
       - name: Initialize Empty State
         if: github.event.inputs.action == 'create' && hashFiles('terraform.tfstate') == ''
@@ -101,6 +111,17 @@ jobs:
           path: terraform.tfstate
           retention-days: 90
           if-no-files-found: error
+
+      - name: Update State Link
+        if: success()
+        run: |
+          echo "run_id: ${{ github.run_id }}" > terraform.state.link
+          echo "workflow_id: ${{ github.workflow }}" >> terraform.state.link
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add terraform.state.link
+          git commit -m "Update terraform state location [skip ci]" || true
+          git push
 
       - name: Force Unlock State
         if: github.event.inputs.action == 'force-unlock'
