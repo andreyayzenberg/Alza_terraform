@@ -108,11 +108,12 @@ jobs:
       - name: Terraform Destroy
         if: github.event.inputs.action == 'destroy'
         run: |
-          # Target only the mojeDefaultBranch resources
+          # Target all repositories for destruction
           terraform destroy -auto-approve -input=false \
-            # -target='module.branch.github_branch_default.default_branch[*]' \
-            -target='module.branch.github_branch.branches["*_mojeDefaultBranch"]'
-          terraform destroy -auto-approve -input=false
+            -target='module.repository.github_repository.repos[*]'
+
+          # Destroy all resources  
+          #terraform destroy -auto-approve -input=false  
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
