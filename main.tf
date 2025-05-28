@@ -1,8 +1,21 @@
 # main.tf
 
 provider "github" {
-  token = var.github_token
-  owner = var.github_owner
+  token = var.github_token  # Personal access token
+  owner = var.github_owner  # GitHub owner/organization name
+  base_url = "https://api.github.com/"
+}
+
+# Variable declarations
+variable "github_token" {
+  type        = string
+  sensitive   = true
+  description = "GitHub Personal Access Token"
+}
+
+variable "github_owner" {
+  type        = string
+  description = "GitHub owner/organization name"
 }
 
 locals {
@@ -19,21 +32,19 @@ locals {
 
 module "repository" {
   source = "./modules/repository"
-  
-  repositories    = local.repositories
-  repo_languages = local.repo_languages
-  main_branch_name = "main"
+  repositories = local.repositories
 }
 
 module "branch" {
   source = "./modules/branch"
   
-  repositories        = local.repositories
+  repositories       = local.repositories
   branches           = local.branches
   default_branch     = "mojeDefaultBranch"
   repository_names   = module.repository.repo_names
   repository_node_ids = module.repository.repo_node_ids
   protected_repos    = toset(["xxx"])
+  repo_languages     = local.repo_languages
 
   depends_on = [module.repository]
 }
@@ -46,15 +57,4 @@ module "environment" {
   repository_names = module.repository.repo_names
 
   depends_on = [module.repository]
-}
-
-variable "github_token" {
-  type        = string
-  sensitive   = true
-  description = "GitHub personal access token"
-}
-
-variable "github_owner" {
-  type        = string
-  description = "GitHub owner/organization name"
 }
