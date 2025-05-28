@@ -41,34 +41,36 @@ jobs:
           sed -i "s|OWNER/REPO|$REPO_PATH|g" backend.tf
           sed -i "s|GITHUB_TOKEN|${{ secrets.TF_GITHUB_TOKEN }}|g" backend.tf
 
+      - name: Initialize Empty State
+        if: github.event.inputs.action == 'create'
+        run: |
+          echo '{}' > terraform.tfstate
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add terraform.tfstate
+          git commit -m "Initialize empty state file" || true
+          git push || true
+        continue-on-error: true
+
       - name: Force Unlock State
         if: github.event.inputs.action == 'force-unlock'
         run: |
-          terraform init
+          terraform init -lock=false
           terraform force-unlock -force "$(terraform state pull 2>&1 | grep -o 'ID: [0-9a-f\-]*' | cut -d' ' -f2)"
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
 
-      - name: Clear Stale Lock
-        run: |
-          curl -X DELETE \
-          -H "Authorization: token ${{ secrets.TF_GITHUB_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          "https://api.github.com/repos/${{ github.repository }}/contents/.terraform.tfstate.lock.info" \
-          || true
-        continue-on-error: true
-
       - name: Terraform Init
         id: init
-        run: terraform init
+        run: terraform init -lock=false
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
 
       - name: Terraform Plan Create
         if: github.event.inputs.action == 'create'
         id: plan
-        run: terraform plan -no-color
+        run: terraform plan -lock=false -no-color
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
@@ -77,7 +79,7 @@ jobs:
       - name: Terraform Plan Destroy
         if: github.event.inputs.action == 'destroy'
         id: plan-destroy
-        run: terraform plan -destroy -no-color
+        run: terraform plan -destroy -lock=false -no-color
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
@@ -85,7 +87,7 @@ jobs:
 
       - name: Terraform Apply
         if: github.event.inputs.action == 'create'
-        run: terraform apply -auto-approve
+        run: terraform apply -lock=false -auto-approve
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
@@ -93,7 +95,7 @@ jobs:
 
       - name: Terraform Destroy
         if: github.event.inputs.action == 'destroy'
-        run: terraform destroy -auto-approve
+        run: terraform destroy -lock=false -auto-approve
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}

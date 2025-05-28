@@ -10,6 +10,7 @@ terraform {
     password       = "GITHUB_TOKEN"
     retry_max      = 3
     retry_wait_min = 5
+    lock          = false  # Disable state locking initially
   }
 
   required_providers {
