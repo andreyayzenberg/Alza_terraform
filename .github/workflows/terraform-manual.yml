@@ -18,8 +18,6 @@ permissions:
 
 env:
   TF_LOG: INFO
-  TF_HTTP_USERNAME: "x-access-token"
-  TF_HTTP_PASSWORD: ${{ secrets.TF_GITHUB_TOKEN }}
 
 jobs:
   terraform:
@@ -35,29 +33,25 @@ jobs:
         with:
           terraform_version: "1.12.1"
 
-      - name: Configure Backend
-        run: |
-          REPO_PATH="${{ github.repository }}"
-          sed -i "s|OWNER/REPO|$REPO_PATH|g" backend.tf
-          sed -i "s|GITHUB_TOKEN|${{ secrets.TF_GITHUB_TOKEN }}|g" backend.tf
-
-      - name: Force Unlock State
-        if: github.event.inputs.action == 'force-unlock'
-        run: |
-          terraform init
-          terraform force-unlock -force "$(terraform state pull 2>&1 | grep -o 'ID: [0-9a-f\-]*' | cut -d' ' -f2)"
-        env:
-          GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
-          TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
-
-      - name: Clear Stale Lock
-        run: |
-          curl -X DELETE \
-          -H "Authorization: token ${{ secrets.TF_GITHUB_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          "https://api.github.com/repos/${{ github.repository }}/contents/.terraform.tfstate.lock.info" \
-          || true
+      - name: Download Previous State
+        uses: actions/download-artifact@v4
         continue-on-error: true
+        with:
+          name: terraform-state
+          path: .
+
+      - name: Initialize Empty State
+        if: github.event.inputs.action == 'create' && !fileExists('terraform.tfstate')
+        run: |
+          echo '{
+            "version": 4,
+            "terraform_version": "1.12.1",
+            "serial": 1,
+            "lineage": "'$(uuidgen)'",
+            "outputs": {},
+            "resources": [],
+            "check_results": null
+          }' > terraform.tfstate
 
       - name: Terraform Init
         id: init
@@ -68,7 +62,7 @@ jobs:
       - name: Terraform Plan Create
         if: github.event.inputs.action == 'create'
         id: plan
-        run: terraform plan -no-color
+        run: terraform plan -no-color -input=false
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
@@ -77,7 +71,7 @@ jobs:
       - name: Terraform Plan Destroy
         if: github.event.inputs.action == 'destroy'
         id: plan-destroy
-        run: terraform plan -destroy -no-color
+        run: terraform plan -destroy -no-color -input=false
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
@@ -85,7 +79,7 @@ jobs:
 
       - name: Terraform Apply
         if: github.event.inputs.action == 'create'
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -input=false
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
@@ -93,17 +87,26 @@ jobs:
 
       - name: Terraform Destroy
         if: github.event.inputs.action == 'destroy'
-        run: terraform destroy -auto-approve
+        run: terraform destroy -auto-approve -input=false
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_owner: ${{ github.repository_owner }}
 
-      - name: Verify State File
+      - name: Upload State
         if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-state
+          path: terraform.tfstate
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Force Unlock State
+        if: github.event.inputs.action == 'force-unlock'
         run: |
-          echo "Checking terraform.tfstate in repository..."
-          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-               -H "Accept: application/vnd.github.v3+json" \
-               https://api.github.com/repos/${{ github.repository }}/contents/terraform.tfstate | \
-          jq -r '.sha // empty' && echo "✅ State file found!" || echo "❌ State file not found" 
+          terraform init
+          terraform force-unlock -force $(terraform state pull | jq -r '.serial')
+        env:
+          GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
+          TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }} 
