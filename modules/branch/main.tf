@@ -64,5 +64,10 @@ resource "github_branch_protection" "protection" {
     required_approving_review_count = 1
   }
 
+  restrictions {
+    users = []
+    teams = []
+  }
+
   depends_on = [github_branch_default.default_branch]
 } 
