@@ -52,6 +52,14 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ steps.state-location.outputs.previous_run_id }}
 
+      - name: Verify State File Download
+        if: steps.state-location.outputs.previous_artifact_id != ''
+        run: |
+          echo -e "Directory contents:\n"
+          ls -la
+          echo -e "\nTerraform state file contents:\n"
+          cat terraform.tfstate || echo "State file not found"
+
       - name: Initialize Empty State
         if: github.event.inputs.action == 'create' && hashFiles('terraform.tfstate') == ''
         run: |
