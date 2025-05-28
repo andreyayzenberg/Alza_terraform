@@ -91,6 +91,7 @@ jobs:
       - name: Terraform Plan Destroy
         if: github.event.inputs.action == 'destroy'
         id: plan-destroy
+        continue-on-error: true
         run: terraform plan -destroy -no-color -input=false
         env:
           GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
