@@ -18,15 +18,30 @@ variable "github_owner" {
   description = "GitHub owner/organization name"
 }
 
+variable "repo_xxx" {
+  type        = string
+  description = "Name for the first repository"
+}
+
+variable "repo_yyy" {
+  type        = string
+  description = "Name for the second repository"
+}
+
+variable "repo_zzz" {
+  type        = string
+  description = "Name for the third repository"
+}
+
 locals {
-  repositories = ["xxx", "yyy", "zzz"]
+  repositories = [var.repo_xxx, var.repo_yyy, var.repo_zzz]
   branches     = ["main", "mojeDefaultBranch"]
   environments = ["dev", "test", "produkce"]
 
   repo_languages = {
-    xxx = "sql"
-    yyy = "java"
-    zzz = "sql"
+    "${var.repo_xxx}" = "sql"
+    "${var.repo_yyy}" = "java"
+    "${var.repo_zzz}" = "sql"
   }
 }
 
