@@ -17,9 +17,7 @@ permissions:
 
 env:
   TF_LOG: INFO
-  TF_VAR_repo_xxx: "xxx"
-  TF_VAR_repo_yyy: "yyy"
-  TF_VAR_repo_zzz: "zzz"
+  TF_VAR_repositories: '["xxx", "yyy", "zzz"]'
 
 jobs:
   terraform:
@@ -112,13 +110,17 @@ jobs:
         if: github.event.inputs.action == 'destroy'
         continue-on-error: true
         run: |
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/etc/apt/keyrings/githubcli-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/githubcli.list > /dev/null
+          #curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/etc/apt/keyrings/githubcli-archive-keyring.gpg
+          #echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/githubcli.list > /dev/null
           sudo apt update
           sudo apt install gh
           echo "${{ secrets.TF_GITHUB_TOKEN }}" | gh auth login --with-token
 
-          gh repo delete andreyayzenberg/${{ env.TF_VAR_repo_xxx }} --yes
+          # Convert JSON array to bash array and iterate
+          repositories=$(echo $TF_VAR_repositories | jq -r '.[]')
+          for repo in $repositories; do
+            gh repo delete ${{ github.repository_owner }}/$repo --yes || true
+          done
 
           # Destroy all resources
           terraform destroy -auto-approve -input=false

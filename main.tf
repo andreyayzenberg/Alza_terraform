@@ -18,47 +18,34 @@ variable "github_owner" {
   description = "GitHub owner/organization name"
 }
 
-variable "repo_xxx" {
-  type        = string
-  description = "Name for the first repository"
-}
-
-variable "repo_yyy" {
-  type        = string
-  description = "Name for the second repository"
-}
-
-variable "repo_zzz" {
-  type        = string
-  description = "Name for the third repository"
+variable "repositories" {
+  type        = list(string)
+  description = "List of repository names, defined in terraform-manual.yml"
 }
 
 locals {
-  repositories = [var.repo_xxx, var.repo_yyy, var.repo_zzz]
   branches     = ["main", "mojeDefaultBranch"]
   environments = ["dev", "test", "produkce"]
 
   repo_languages = {
-    "${var.repo_xxx}" = "sql"
-    "${var.repo_yyy}" = "java"
-    "${var.repo_zzz}" = "sql"
+    for repo in var.repositories : repo => repo == var.repositories[1] ? "java" : "sql"
   }
 }
 
 module "repository" {
   source       = "./modules/repository"
-  repositories = local.repositories
+  repositories = var.repositories
 }
 
 module "branch" {
   source = "./modules/branch"
 
-  repositories        = local.repositories
+  repositories        = var.repositories
   branches            = local.branches
   default_branch      = "mojeDefaultBranch"
   repository_names    = module.repository.repo_names
   repository_node_ids = module.repository.repo_node_ids
-  protected_repos     = toset(["xxx"])
+  protected_repos     = toset([var.repositories[0]])
   repo_languages      = local.repo_languages
 
   depends_on = [module.repository]
@@ -68,7 +55,7 @@ module "environment" {
   source = "./modules/environment"
 
   environments     = local.environments
-  repositories     = local.repositories
+  repositories     = var.repositories
   repository_names = module.repository.repo_names
 
   depends_on = [module.repository]
