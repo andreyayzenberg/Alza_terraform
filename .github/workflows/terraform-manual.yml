@@ -110,14 +110,6 @@ jobs:
         if: github.event.inputs.action == 'destroy'
         continue-on-error: true
         run: |
-          #curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/etc/apt/keyrings/githubcli-archive-keyring.gpg
-          #echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/githubcli.list > /dev/null
-          sudo apt update
-          sudo apt install gh
-          
-          # Unset GITHUB_TOKEN to avoid conflicts with gh auth
-          #unset GITHUB_TOKEN
-          
           echo "${{ secrets.TF_GITHUB_TOKEN }}" | gh auth login --with-token
           #gh auth login --with-token
 
