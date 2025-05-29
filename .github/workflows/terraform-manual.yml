@@ -76,15 +76,15 @@ jobs:
       - name: Terraform Init
         id: init
         run: terraform init
-        env:
-          GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
+        #env:
+          #GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
 
       - name: Terraform Plan Create
         if: github.event.inputs.action == 'create'
         id: plan
         run: terraform plan -no-color -input=false
         env:
-          GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
+          #GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_owner: ${{ github.repository_owner }}
 
@@ -94,7 +94,7 @@ jobs:
         continue-on-error: true
         run: terraform plan -destroy -no-color -input=false
         env:
-          GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
+          #GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_owner: ${{ github.repository_owner }}
 
@@ -102,7 +102,7 @@ jobs:
         if: github.event.inputs.action == 'create'
         run: terraform apply -auto-approve -input=false
         env:
-          GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
+          #GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_owner: ${{ github.repository_owner }}
 
@@ -111,7 +111,6 @@ jobs:
         continue-on-error: true
         run: |
           echo "${{ secrets.TF_GITHUB_TOKEN }}" | gh auth login --with-token
-          #gh auth login --with-token
 
           # Convert JSON array to bash array and iterate
           repositories=$(echo $TF_VAR_repositories | jq -r '.[]')
@@ -122,7 +121,6 @@ jobs:
           # Destroy all resources
           terraform destroy -auto-approve -input=false
         env:
-          #GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
           TF_VAR_github_owner: ${{ github.repository_owner }}
 
