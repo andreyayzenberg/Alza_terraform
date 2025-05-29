@@ -77,24 +77,6 @@ jobs:
         id: init
         run: terraform init
 
-      - name: Terraform Plan Create
-        if: github.event.inputs.action == 'create'
-        id: plan
-        run: terraform plan -no-color -input=false
-        env:
-          TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
-          TF_VAR_github_owner: ${{ github.repository_owner }}
-
-      - name: Terraform Plan Destroy
-        if: github.event.inputs.action == 'destroy'
-        id: plan-destroy
-        continue-on-error: true
-        run: terraform plan -destroy -no-color -input=false
-        env:
-          #GITHUB_TOKEN: ${{ secrets.TF_GITHUB_TOKEN }}
-          TF_VAR_github_token: ${{ secrets.TF_GITHUB_TOKEN }}
-          TF_VAR_github_owner: ${{ github.repository_owner }}
-
       - name: Terraform Apply
         if: github.event.inputs.action == 'create'
         run: terraform apply -auto-approve -input=false
